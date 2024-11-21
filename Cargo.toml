@@ -1,0 +1,18 @@
+[package]
+name = "omu"
+version = "0.1.0"
+edition = "2021"
+authors = ["AWeirdDev <aweirdscratcher@gmail.com>"]
+description = "A simple Discord API wrapper."
+license = "Apache-2.0"
+keywords = ["discord", "bot", "api"]
+
+[dependencies]
+anyhow = "1.0.93"
+bitflags = "2.6.0"
+futures-util = { version = "0.3.31", features = ["sink"] }
+ijson = "0.1.3"
+serde = { version = "1.0.215", features = ["derive"] }
+serde_json = "1.0.133"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
