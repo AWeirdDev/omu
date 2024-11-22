@@ -11,10 +11,10 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(token: String, intents: Option<Intents>) -> Self {
+    pub fn new<K: ToString>(token: K, intents: Option<Intents>) -> Self {
         Self {
             gateway: None,
-            token: token,
+            token: token.to_string(),
             intents: intents,
         }
     }
