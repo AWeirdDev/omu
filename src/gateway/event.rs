@@ -1,4 +1,4 @@
-use super::Message;
+use super::{Intents, Message};
 use ijson::ijson;
 use serde::{Deserialize, Serialize};
 
@@ -57,19 +57,22 @@ impl GatewayEvent {
         properties: IdentifyConnectionProperty,
         compress: Option<bool>,
         large_threshold: Option<u8>,
-        shard: Option<(usize, usize)>,
+        shard: Option<(u64, u64)>,
         presence: Option<ijson::IValue>,
         intents: Option<u64>,
     ) -> Self {
-        let data = ijson!({
-                "token": token,
-                "properties": properties,
-                "compress": compress,
-                "large_threshold": large_threshold,
-                "shard": shard,
-                "presence": presence,
-                "intents": intents
+        let mut data = ijson!({
+            "token": token,
+            "properties": properties,
+            "compress": compress,
+            "large_threshold": large_threshold,
+            "presence": presence,
+            "intents": intents.unwrap_or(Intents::empty().into()),
         });
+
+        if let Some((id, total)) = shard {
+            data["shard"] = ijson!([id, total]);
+        }
 
         Self {
             op_code: 2,

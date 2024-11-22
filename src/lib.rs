@@ -1,3 +1,2 @@
-mod gateway;
-
-pub use gateway::{core::*, event::*, intents::*};
+pub mod gateway;
+pub use gateway::{core::*, event::*, intents::*, sharding::*};

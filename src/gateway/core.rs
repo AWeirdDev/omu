@@ -9,7 +9,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use super::Intents;
+use super::{get_sharding, GatewayEvent, Intents};
 
 pub enum Status {
     Establishing,
@@ -21,18 +21,32 @@ pub struct Gateway {
     pub stream: Option<Pin<Box<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
     pub status: Status,
     pub heartbeat_interval: Option<usize>,
+    pub sharding: Option<(u64, u64)>,
 }
 
 impl Gateway {
-    /// Connects to the gateway.
-    pub async fn connect(endpoint: String) -> Result<Self> {
+    /// Connects to the gateway and returns a new [`Gateway`].
+    pub async fn new_connection(endpoint: &str) -> Result<Self> {
         let (stream, _) = tokio_tungstenite::connect_async(endpoint).await?;
 
         Ok(Self {
             stream: Some(Box::pin(stream)),
             status: Status::Establishing,
             heartbeat_interval: None,
+            sharding: None,
         })
+    }
+
+    /// Sets the sharding for the gateway.
+    ///
+    /// ```rust
+    /// let gateway: Gateway = Gateway::new_connection("wss://gateway.discord.gg/?v=10&encoding=json")
+    ///     .await?
+    ///     .with_guild_sharding(123456789, 10);
+    /// ```
+    pub fn with_guild_sharding(mut self, guild_id: u64, total_shards: u64) -> Self {
+        self.sharding = Some(get_sharding(guild_id, total_shards));
+        self
     }
 
     /// Disconnects from the gateway.
@@ -103,7 +117,11 @@ impl Gateway {
     /// // without intents
     /// gateway.authenticate("some token", None).await?;
     /// ```
-    pub async fn authenticate(&mut self, token: &str, intents: Option<Intents>) -> Result<()> {
+    pub async fn authenticate<K: ToString>(
+        &mut self,
+        token: K,
+        intents: Option<Intents>,
+    ) -> Result<()> {
         self.send(
             super::event::GatewayEvent::new_identify(
                 token.to_string(),
@@ -114,7 +132,7 @@ impl Gateway {
                 },
                 Some(false),
                 Some(50),
-                None,
+                self.sharding,
                 None,
                 intents.map(|i| i.into()),
             )
@@ -123,18 +141,20 @@ impl Gateway {
         .await?;
         Ok(())
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    /// Authenticates with the gateway and returns the first event received, which is the result.
+    pub async fn authenticate_flow<K: ToString>(
+        &mut self,
+        token: K,
+        intents: Option<Intents>,
+    ) -> Result<GatewayEvent> {
+        self.authenticate(token, intents).await?;
 
-    #[tokio::test]
-    async fn it_works() -> Result<()> {
-        let mut gateway =
-            Gateway::connect("wss://gateway.discord.gg/?v=10&encoding=json".to_string()).await?;
-        gateway.disconnect().await?;
-
-        Ok(())
+        if let Some(message) = self.next().await? {
+            let event: GatewayEvent = message.into();
+            Ok(event)
+        } else {
+            Err(anyhow::anyhow!("Failed to authenticate (no response)"))
+        }
     }
 }
