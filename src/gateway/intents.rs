@@ -1,6 +1,8 @@
 use bitflags::bitflags;
 
 bitflags! {
+    #[derive(Clone)]
+    /// Gateway intents. (`u64`)
     pub struct Intents: u64 {
         const GUILDS = 1 << 0;
         const GUILD_MEMBERS = 1 << 1;

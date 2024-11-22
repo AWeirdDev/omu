@@ -2,7 +2,6 @@ use std::{borrow::Cow, pin::Pin};
 
 use anyhow::Result;
 use futures_util::{stream::StreamExt, SinkExt};
-use ijson::ijson;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
@@ -22,6 +21,7 @@ pub struct Gateway {
     pub status: Status,
     pub heartbeat_interval: Option<usize>,
     pub sharding: Option<(u64, u64)>,
+    pub last_sequence_number: Option<u64>,
 }
 
 impl Gateway {
@@ -34,6 +34,7 @@ impl Gateway {
             status: Status::Establishing,
             heartbeat_interval: None,
             sharding: None,
+            last_sequence_number: None,
         })
     }
 
