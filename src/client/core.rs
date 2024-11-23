@@ -1,8 +1,11 @@
 use std::pin::Pin;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
-use crate::gateway::{Gateway, Intents};
+use crate::{
+    gateway::{Gateway, Intents},
+    GatewayEvent, GatewayEventData,
+};
 
 pub struct Client {
     pub gateway: Option<Pin<Box<Gateway>>>,
@@ -19,8 +22,8 @@ impl Client {
         }
     }
 
-    /// Connects to the gateway.
-    /// 
+    /// Connects to the gateway. This only registers a gateway object inside the client struct.
+    ///
     /// # Example
     /// ```rust
     /// use omu::Intents;
@@ -38,5 +41,35 @@ impl Client {
         self.gateway = Some(Box::pin(gateway));
 
         Ok(())
+    }
+
+    /// Iterates over the gateway and returns the next event data.
+    /// Unlike `Gateway::next` (which returns a raw `Message`), this returns a `GatewayEventData`, a typed enum.
+    ///
+    /// # Example
+    /// ```rust
+    /// let client = Client::new("TOKEN", None);
+    /// client.connect().await?;
+    ///
+    /// while let Ok(data) = client.next().await {
+    ///     match data {
+    ///         GatewayEventData::Ready(ready) => {
+    ///             println!("Ready: {:#?}", ready);
+    ///         }
+    ///         _ => {}
+    ///     }
+    /// }
+    /// ```
+    pub async fn next(&mut self) -> Result<GatewayEventData> {
+        if let Some(gateway) = self.gateway.as_mut() {
+            if let Some(message) = gateway.next().await? {
+                let event: GatewayEvent = message.into();
+                let data = event.get_event_data()?;
+
+                return Ok(data);
+            }
+        }
+
+        Err(anyhow!("no data received"))
     }
 }

@@ -1,25 +1,23 @@
 use anyhow::Result;
 use dotenv;
 
-use omu::{Gateway, GatewayEvent};
+use omu::{Client, GatewayEventData};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv::dotenv().ok();
 
-    let mut gateway =
-        Gateway::new_connection("wss://gateway.discord.gg/?v=10&encoding=json").await?;
-
-    let message = gateway.next().await?;
-    if let Some(message) = message {
-        let event: GatewayEvent = message.into();
-        println!("{:?}", event);
+    let mut client = Client::new(dotenv::var("TOKEN")?, None);
+    client.connect().await?;
+    if let Some(gw) = client.gateway.as_mut() {
+        gw.next().await?;
     }
 
-    let result = gateway.authenticate_flow(dotenv::var("TOKEN")?, None).await?;
-    println!("{result:?}");
-
-    gateway.disconnect().await?;
+    while let Ok(e) = client.next().await {
+        match e {
+            GatewayEventData::Ready(ready) => println!("Ready: {:#?}", ready),
+        }
+    }
 
     Ok(())
 }

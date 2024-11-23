@@ -1,5 +1,8 @@
+use crate::User;
+
 use super::{Intents, Message};
-use ijson::ijson;
+use anyhow::{anyhow, Result};
+use ijson::{ijson, IValue};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -7,19 +10,9 @@ pub struct GatewayEvent {
     #[serde(rename = "op")]
     pub op_code: u32,
     #[serde(rename = "d")]
-    pub data: Option<ijson::IValue>,
+    pub data: Option<IValue>,
     #[serde(rename = "s")]
     pub sequence: Option<u64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct IdentifyConnectionProperty {
-    /// The operating system.
-    pub os: String,
-    /// The library name.
-    pub browser: String,
-    /// The library name.
-    pub device: String,
 }
 
 impl From<Message> for GatewayEvent {
@@ -80,4 +73,50 @@ impl GatewayEvent {
             sequence: None,
         }
     }
+
+    /// Gets the event data in the `data` field but in a typed enum.
+    ///
+    /// # Example
+    /// ```rust
+    /// let event: GatewayEvent = GatewayEvent { ... };
+    /// let data: GatewayEventData = event.get_event_data()?;
+    /// ```
+    pub fn get_event_data(&self) -> Result<GatewayEventData> {
+        if let Some(data) = &self.data {
+            let e = match self.op_code {
+                0 => GatewayEventData::Ready(ijson::from_value::<ReadyData>(data).unwrap()),
+                _ => panic!("unknown op code! {}", self.op_code),
+            };
+            Ok(e)
+        } else {
+            Err(anyhow!("unrecognized data type. raw: {:?}", self.data))
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdentifyConnectionProperty {
+    /// The operating system.
+    pub os: String,
+    /// The library name.
+    pub browser: String,
+    /// The library name.
+    pub device: String,
+}
+
+#[derive(Debug)]
+pub enum GatewayEventData {
+    Ready(ReadyData),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReadyData {
+    #[serde(rename = "v")]
+    pub version: u8,
+    pub user: User,
+    pub guilds: Vec<IValue>,
+    pub session_id: String,
+    pub resume_gateway_url: String,
+    pub shard: Option<(u64, u64)>,
+    pub application: IValue,
 }
