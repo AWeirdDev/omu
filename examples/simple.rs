@@ -1,7 +1,7 @@
 use anyhow::Result;
 use dotenv;
 
-use omu::{Client, GatewayEventData};
+use omu::{slash, Client, GatewayEventData};
 
 #[tokio::main]
 async fn main() -> Result<()> {
