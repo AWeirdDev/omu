@@ -1,6 +1,8 @@
-use crate::User;
+use super::{
+    event_data::{GatewayEventData, HelloData, ReadyData},
+    Intents, Message,
+};
 
-use super::{Intents, Message};
 use anyhow::{anyhow, Result};
 use ijson::{ijson, IValue};
 use serde::{Deserialize, Serialize};
@@ -109,27 +111,4 @@ pub struct IdentifyConnectionProperty {
     pub browser: String,
     /// The library name.
     pub device: String,
-}
-
-#[derive(Debug)]
-pub enum GatewayEventData {
-    Ready(ReadyData),
-    Hello(HelloData),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ReadyData {
-    #[serde(rename = "v")]
-    pub version: u8,
-    pub user: User,
-    pub guilds: Vec<IValue>,
-    pub session_id: String,
-    pub resume_gateway_url: String,
-    pub shard: Option<(u64, u64)>,
-    pub application: IValue,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct HelloData {
-    pub heartbeat_interval: usize,
 }
