@@ -422,6 +422,7 @@ dependencies = [
 name = "omu-macros"
 version = "0.1.0"
 dependencies = [
+ "ijson",
  "proc-macro2",
  "quote",
  "syn",

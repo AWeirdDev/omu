@@ -89,6 +89,26 @@ pub fn event(args: TokenStream, input: TokenStream) -> TokenStream {
     let inputs = &r#fn.sig.inputs;
     let output = &r#fn.sig.output;
     let asynchronous = &r#fn.sig.asyncness;
+    // let types = inputs
+    //     .into_iter()
+    //     .filter_map(|arg| match arg {
+    //         FnArg::Receiver(_) => None,
+    //         FnArg::Typed(syn::PatType { ty, .. }) => Some(*ty.clone()),
+    //     })
+    //     .collect::<Vec<_>>();
+
+    // for item in types {
+    //     match item {
+    //         syn::Type::Path(syn::TypePath { path, .. }) => match path.get_ident() {
+    //             Some(ident) => match ident.to_string().as_str() {
+    //                 "Context" => continue,
+    //                 _ => (),
+    //             },
+    //             None => return syn::Error::new_spanned(quote!(#[event]), "unknown type").to_compile_error().into(),
+    //         },
+    //         _ => (),
+    //     }
+    // }
 
     if asynchronous.is_none() {
         return syn::Error::new_spanned(quote!(#[event]), "handler must be async")
@@ -97,13 +117,18 @@ pub fn event(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let expanded = quote! {
+        use ijson::{ijson, IValue};
+
         #visibility async fn #fn_name(#inputs) #output {
             #block
         }
 
         /// Metadata for omu. **DO NOT CALL DIRECTLY**
-        #visibility fn #meta_fn_name() -> String {
-            #name.to_string()
+        #visibility fn #meta_fn_name() -> IValue {
+            let name = #name.to_string();
+            ijson!({
+                "name": name
+            })
         }
     };
 
