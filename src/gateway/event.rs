@@ -85,6 +85,13 @@ impl GatewayEvent {
         if let Some(data) = &self.data {
             let e = match self.op_code {
                 0 => GatewayEventData::Ready(ijson::from_value::<ReadyData>(data).unwrap()),
+                10 => GatewayEventData::Hello(HelloData {
+                    heartbeat_interval: data["heartbeat_interval"]
+                        .as_number()
+                        .unwrap()
+                        .to_usize()
+                        .unwrap(),
+                }),
                 _ => panic!("unknown op code! {}", self.op_code),
             };
             Ok(e)
@@ -107,6 +114,7 @@ pub struct IdentifyConnectionProperty {
 #[derive(Debug)]
 pub enum GatewayEventData {
     Ready(ReadyData),
+    Hello(HelloData),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -119,4 +127,9 @@ pub struct ReadyData {
     pub resume_gateway_url: String,
     pub shard: Option<(u64, u64)>,
     pub application: IValue,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HelloData {
+    pub heartbeat_interval: usize,
 }

@@ -9,13 +9,11 @@ async fn main() -> Result<()> {
 
     let mut client = Client::new(dotenv::var("TOKEN")?, None);
     client.connect().await?;
-    if let Some(gw) = client.gateway.as_mut() {
-        gw.next().await?;
-    }
 
     while let Ok(e) = client.next().await {
         match e {
             GatewayEventData::Ready(ready) => println!("Ready: {:#?}", ready),
+            GatewayEventData::Hello(hello) => println!("Hello! {:#?}", hello),
         }
     }
 
