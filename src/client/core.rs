@@ -18,7 +18,7 @@ impl Client {
         Self {
             gateway: None,
             token: token.to_string(),
-            intents: intents,
+            intents,
         }
     }
 
