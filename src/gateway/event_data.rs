@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum GatewayEvent {
     Ready(ReadyData),
     Hello(HelloData),
-    MessageCreate(MessageCreate),
+    MessageCreate(MessageCreateData),
     HeartbeatAcknowledgement,
     Heartbeat,
 }
@@ -30,7 +30,7 @@ pub struct HelloData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MessageCreate {
+pub struct MessageCreateData {
     pub guild_id: Option<String>,
     pub message: Message,
     // pub member
