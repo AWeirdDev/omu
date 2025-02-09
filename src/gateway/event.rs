@@ -1,5 +1,5 @@
 use super::{
-    event_data::{GatewayEventData, HelloData, ReadyData},
+    event_data::{GatewayEvent, HelloData, ReadyData},
     Intents, Message,
 };
 
@@ -8,7 +8,7 @@ use ijson::{ijson, IValue};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GatewayEvent {
+pub struct RawGatewayEvent {
     #[serde(rename = "op")]
     pub op_code: u32,
     #[serde(rename = "d")]
@@ -17,7 +17,7 @@ pub struct GatewayEvent {
     pub sequence: Option<u64>,
 }
 
-impl From<Message> for GatewayEvent {
+impl From<Message> for RawGatewayEvent {
     fn from(value: Message) -> Self {
         let t = match value {
             Message::Text(event) => event,
@@ -31,13 +31,13 @@ impl From<Message> for GatewayEvent {
     }
 }
 
-impl Into<Message> for GatewayEvent {
+impl Into<Message> for RawGatewayEvent {
     fn into(self) -> Message {
         Message::Text(serde_json::to_string(&self).unwrap())
     }
 }
 
-impl GatewayEvent {
+impl RawGatewayEvent {
     /// Creates a new "Identify" structure. Used to trigger the initial handshake with the gateway.
     /// # Arguments
     /// * `token` - The token of the bot.
@@ -48,7 +48,7 @@ impl GatewayEvent {
     /// * `presence` - The presence of the bot.
     /// * `intents` - Gateway intents to receive.
     pub fn new_identify(
-        token: String,
+        token: &str,
         properties: IdentifyConnectionProperty,
         compress: Option<bool>,
         large_threshold: Option<u8>,
@@ -76,22 +76,15 @@ impl GatewayEvent {
         }
     }
 
-    /// Gets the event data in the `data` field but in a typed enum.
-    ///
-    /// # Example
-    /// ```rust
-    /// let event: GatewayEvent = GatewayEvent { ... };
-    /// let data: GatewayEventData = event.get_event_data()?;
-    /// ```
-    pub fn get_event_data(&self) -> Result<GatewayEventData> {
+    pub fn get_event_data(&self) -> Result<GatewayEvent> {
         if let Some(data) = &self.data {
             let e = match self.op_code {
-                0 => GatewayEventData::Ready(ijson::from_value::<ReadyData>(data).unwrap()),
-                10 => GatewayEventData::Hello(HelloData {
+                0 => GatewayEvent::Ready(ijson::from_value::<ReadyData>(data).unwrap()),
+                10 => GatewayEvent::Hello(HelloData {
                     heartbeat_interval: data["heartbeat_interval"]
                         .as_number()
                         .unwrap()
-                        .to_usize()
+                        .to_u64()
                         .unwrap(),
                 }),
                 _ => panic!("unknown op code! {}", self.op_code),

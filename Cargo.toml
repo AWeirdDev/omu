@@ -19,10 +19,6 @@ serde_json = "1.0.133"
 syn = { version = "2.0.89", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
-omu-macros = { path = "./omu-macros" }
-
-[workspace]
-members = ["omu-macros"]
 
 [dev-dependencies]
 dotenv = "0.15.0"

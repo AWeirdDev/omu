@@ -1,14 +1,24 @@
-use std::{borrow::Cow, pin::Pin};
+use std::{borrow::Cow, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use futures_util::{stream::StreamExt, SinkExt};
-use tokio::net::TcpStream;
+use tokio::{
+    net::TcpStream,
+    sync::{
+        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        Mutex,
+    },
+    time::interval,
+};
 use tokio_tungstenite::{
     tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message},
     MaybeTlsStream, WebSocketStream,
 };
 
-use super::{get_sharding, GatewayEvent, Intents};
+use super::{get_sharding, Intents};
+
+pub type Tx = UnboundedSender<Message>;
+pub type Rx = UnboundedReceiver<Message>;
 
 pub enum Status {
     Establishing,
@@ -17,9 +27,9 @@ pub enum Status {
 }
 
 pub struct Gateway {
-    pub stream: Option<Pin<Box<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
+    pub stream: Arc<Mutex<Option<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
     pub status: Status,
-    pub heartbeat_interval: Option<usize>,
+    pub heartbeat_interval: Option<u64>,
     pub sharding: Option<(u64, u64)>,
     pub last_sequence_number: Option<u64>,
 }
@@ -30,7 +40,7 @@ impl Gateway {
         let (stream, _) = tokio_tungstenite::connect_async(endpoint).await?;
 
         Ok(Self {
-            stream: Some(Box::pin(stream)),
+            stream: Arc::new(Mutex::new(Some(stream))),
             status: Status::Establishing,
             heartbeat_interval: None,
             sharding: None,
@@ -52,9 +62,9 @@ impl Gateway {
 
     /// Disconnects from the gateway.
     pub async fn disconnect(&mut self) -> Result<()> {
-        if let Some(stream) = self.stream.take() {
-            let mut ws_stream = Pin::into_inner(stream);
-            ws_stream
+        let mut stream = self.stream.lock().await;
+        if let Some(mut stream) = stream.take() {
+            stream
                 .close(Some(CloseFrame {
                     code: CloseCode::Normal,
                     reason: Cow::from("Disconnected"),
@@ -69,7 +79,8 @@ impl Gateway {
 
     /// Read one message at a time.
     pub async fn next(&mut self) -> Result<Option<Message>> {
-        if let Some(stream) = self.stream.as_mut() {
+        let mut stream = self.stream.lock().await;
+        if let Some(stream) = stream.as_mut() {
             let (_, mut read) = stream.split();
             let message = read.next().await;
             if let Some(msg) = message {
@@ -84,7 +95,8 @@ impl Gateway {
 
     /// Send a message.
     pub async fn send(&mut self, message: Message) -> Result<()> {
-        if let Some(stream) = self.stream.as_mut() {
+        let mut stream = self.stream.lock().await;
+        if let Some(stream) = stream.as_mut() {
             let (mut write, _) = stream.split();
             write.send(message).await?;
 
@@ -97,7 +109,7 @@ impl Gateway {
     /// Sends a heartbeat ACK. (op code: 11)
     pub async fn heartbeat(&mut self) -> Result<()> {
         self.send(
-            super::event::GatewayEvent {
+            super::event::RawGatewayEvent {
                 op_code: 11,
                 data: None,
                 sequence: None,
@@ -118,14 +130,10 @@ impl Gateway {
     /// // without intents
     /// gateway.authenticate("some token", None).await?;
     /// ```
-    pub async fn authenticate<K: ToString>(
-        &mut self,
-        token: K,
-        intents: Option<Intents>,
-    ) -> Result<()> {
+    pub async fn authenticate(&mut self, token: &str, intents: Option<Intents>) -> Result<()> {
         self.send(
-            super::event::GatewayEvent::new_identify(
-                token.to_string(),
+            super::event::RawGatewayEvent::new_identify(
+                token,
                 super::event::IdentifyConnectionProperty {
                     os: "linux".to_string(),
                     browser: "rust".to_string(),
@@ -143,19 +151,47 @@ impl Gateway {
         Ok(())
     }
 
-    /// Authenticates with the gateway and returns the first event received, which is the result.
-    pub async fn authenticate_flow<K: ToString>(
-        &mut self,
-        token: K,
-        intents: Option<Intents>,
-    ) -> Result<GatewayEvent> {
-        self.authenticate(token, intents).await?;
+    pub async fn run(&mut self) -> Result<Rx> {
+        let interval_ms = self.heartbeat_interval.unwrap_or(5000);
 
-        if let Some(message) = self.next().await? {
-            let event: GatewayEvent = message.into();
-            Ok(event)
-        } else {
-            Err(anyhow::anyhow!("Failed to authenticate (no response)"))
+        let (tx, rx) = mpsc::unbounded_channel::<Message>();
+
+        tokio::spawn(Self::heartbeat_task(self.stream.clone(), interval_ms));
+        tokio::spawn(Self::receive_task(self.stream.clone(), tx));
+
+        Ok(rx)
+    }
+
+    async fn heartbeat_task(
+        stream: Arc<Mutex<Option<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
+        interval_ms: u64,
+    ) {
+        let mut interval = interval(Duration::from_millis(interval_ms));
+
+        loop {
+            println!("Sending heartbeat...");
+            let message = Message::Text(r#"{"op":1,"d":null}"#.to_string());
+
+            let mut stream = stream.lock().await;
+            if let Some(stream) = stream.as_mut() {
+                stream.send(message).await.ok();
+            }
+
+            interval.tick().await;
+        }
+    }
+
+    async fn receive_task(
+        stream: Arc<Mutex<Option<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
+        tx: Tx,
+    ) {
+        loop {
+            let mut lock = stream.lock().await;
+            if let Some(ws_stream) = lock.as_mut() {
+                if let Some(Ok(msg)) = ws_stream.next().await {
+                    tx.send(msg).ok();
+                }
+            }
         }
     }
 }

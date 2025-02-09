@@ -1,24 +1,27 @@
-use std::pin::Pin;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
+use tokio::sync::Mutex;
 
 use crate::{
     gateway::{Gateway, Intents},
-    GatewayEvent, GatewayEventData,
+    GatewayEvent, RawGatewayEvent, Rx,
 };
 
 pub struct Client {
-    pub gateway: Option<Pin<Box<Gateway>>>,
+    pub gateway: Arc<Mutex<Option<Gateway>>>,
     pub token: String,
     pub intents: Option<Intents>,
+    pub rx: Option<Rx>,
 }
 
 impl Client {
     pub fn new<K: ToString>(token: K, intents: Option<Intents>) -> Self {
         Self {
-            gateway: None,
+            gateway: Arc::new(Mutex::new(None)),
             token: token.to_string(),
             intents,
+            rx: None,
         }
     }
 
@@ -35,41 +38,55 @@ impl Client {
         let mut gateway =
             Gateway::new_connection("wss://gateway.discord.gg/?v=10&encoding=json").await?;
         gateway
-            .authenticate(self.token.clone(), self.intents.clone())
+            .authenticate(&*self.token, self.intents.clone())
             .await?;
 
-        self.gateway = Some(Box::pin(gateway));
+        if let Some(data) = gateway.next().await? {
+            let event: RawGatewayEvent = data.into();
+            match event.get_event_data()? {
+                GatewayEvent::Hello(hello) => {
+                    gateway.heartbeat_interval = Some(hello.heartbeat_interval);
+                }
+                _ => {
+                    return Err(anyhow!(
+                    "unrecognized data type after authentication (expected GatewayEvent::Hello)"
+                ))
+                }
+            }
+        } else {
+            return Err(anyhow!(
+                "no data received after authentication (expected GatewayEvent::Hello)"
+            ));
+        }
+
+        self.gateway = Arc::new(Mutex::new(Some(gateway)));
 
         Ok(())
     }
 
     /// Iterates over the gateway and returns the next event data.
-    /// Unlike `Gateway::next` (which returns a raw `Message`), this returns a `GatewayEventData`, a typed enum.
-    ///
-    /// # Example
-    /// ```rust
-    /// let client = Client::new("TOKEN", None);
-    /// client.connect().await?;
-    ///
-    /// while let Ok(data) = client.next().await {
-    ///     match data {
-    ///         GatewayEventData::Ready(ready) => {
-    ///             println!("Ready: {:#?}", ready);
-    ///         }
-    ///         _ => {}
-    ///     }
-    /// }
-    /// ```
-    pub async fn next(&mut self) -> Result<GatewayEventData> {
-        if let Some(gateway) = self.gateway.as_mut() {
-            if let Some(message) = gateway.next().await? {
-                let event: GatewayEvent = message.into();
-                let data = event.get_event_data()?;
-
-                return Ok(data);
+    /// Unlike `Gateway::next` (which returns a raw `Message`), this returns a `GatewayEvent`, a typed enum.
+    pub async fn next(&mut self) -> Result<GatewayEvent> {
+        if let Some(rx) = self.rx.as_mut() {
+            if let Some(message) = rx.recv().await {
+                let event: RawGatewayEvent = message.into();
+                return event.get_event_data();
             }
         }
 
         Err(anyhow!("no data received"))
+    }
+
+    pub async fn run(&mut self) -> Result<()> {
+        self.connect().await?;
+
+        let mut gateway = self.gateway.lock().await;
+
+        if let Some(gw) = gateway.as_mut() {
+            let rx = gw.run().await?;
+            self.rx = Some(rx);
+        }
+
+        Ok(())
     }
 }

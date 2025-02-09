@@ -4,7 +4,7 @@ use ijson::IValue;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
-pub enum GatewayEventData {
+pub enum GatewayEvent {
     Ready(ReadyData),
     Hello(HelloData),
 }
@@ -23,5 +23,5 @@ pub struct ReadyData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HelloData {
-    pub heartbeat_interval: usize,
+    pub heartbeat_interval: u64,
 }
