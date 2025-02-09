@@ -21,5 +21,8 @@ tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
 omu-macros = { path = "./omu-macros" }
 
+[workspace]
+members = ["omu-macros"]
+
 [dev-dependencies]
 dotenv = "0.15.0"
