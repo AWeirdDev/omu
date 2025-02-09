@@ -2,7 +2,7 @@ use crate::models;
 
 use super::{
     event_data::{GatewayEvent, HelloData, ReadyData},
-    Intents, MessageCreate,
+    Intents, MessageCreateData,
 };
 
 use anyhow::{anyhow, Result};
@@ -87,7 +87,7 @@ impl RawGatewayEvent {
             let e = match self.op_code {
                 0 => match self.t.as_deref().unwrap() {
                     "READY" => GatewayEvent::Ready(ijson::from_value::<ReadyData>(data)?),
-                    "MESSAGE_CREATE" => GatewayEvent::MessageCreate(MessageCreate {
+                    "MESSAGE_CREATE" => GatewayEvent::MessageCreate(MessageCreateData {
                         guild_id: data
                             .get("guild_id")
                             .map(|v| v.as_string().unwrap().to_string()),
