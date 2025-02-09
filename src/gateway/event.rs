@@ -83,17 +83,19 @@ impl RawGatewayEvent {
     }
 
     pub fn get_event_data(&self) -> Result<GatewayEvent> {
-        println!("{self:?}");
         if let Some(data) = &self.data {
             let e = match self.op_code {
                 0 => match self.t.as_deref().unwrap() {
                     "READY" => GatewayEvent::Ready(ijson::from_value::<ReadyData>(data)?),
                     "MESSAGE_CREATE" => GatewayEvent::MessageCreate(MessageCreate {
-                        guild_id: data["guild_id"].as_string().map(|v| v.to_string()),
+                        guild_id: data
+                            .get("guild_id")
+                            .map(|v| v.as_string().unwrap().to_string()),
                         message: ijson::from_value::<models::Message>(data)?,
                     }),
                     _ => return Err(anyhow!("unrecognized data type. raw: {:?}", self)),
                 },
+
                 10 => GatewayEvent::Hello(HelloData {
                     heartbeat_interval: data["heartbeat_interval"]
                         .as_number()
@@ -105,7 +107,11 @@ impl RawGatewayEvent {
             };
             Ok(e)
         } else {
-            Err(anyhow!("unrecognized data type. raw: {:?}", self))
+            Ok(match self.op_code {
+                1 => GatewayEvent::Heartbeat,
+                11 => GatewayEvent::HeartbeatAcknowledgement,
+                _ => return Err(anyhow!("unrecognized data type. raw: {:?}", self)),
+            })
         }
     }
 }

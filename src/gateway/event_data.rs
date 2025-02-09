@@ -8,6 +8,8 @@ pub enum GatewayEvent {
     Ready(ReadyData),
     Hello(HelloData),
     MessageCreate(MessageCreate),
+    HeartbeatAcknowledgement,
+    Heartbeat,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

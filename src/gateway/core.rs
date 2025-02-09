@@ -172,10 +172,12 @@ impl Gateway {
         loop {
             let message = Message::Text(r#"{"op":1,"d":null}"#.to_string());
 
-            let mut stream = stream.lock().await;
-            if let Some(stream) = stream.as_mut() {
-                println!("sending heartbeat...");
-                stream.send(message).await.ok();
+            {
+                let mut stream = stream.lock().await;
+                if let Some(stream) = stream.as_mut() {
+                    println!("sending heartbeat...");
+                    stream.send(message).await.ok();
+                }
             }
 
             interval.tick().await;

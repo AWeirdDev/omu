@@ -42,7 +42,6 @@ impl Client {
             let event: RawGatewayEvent = data.into();
             match event.get_event_data()? {
                 GatewayEvent::Hello(hello) => {
-                    println!("connected");
                     gateway.heartbeat_interval = Some(hello.heartbeat_interval);
                 }
                 _ => {

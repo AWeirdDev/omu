@@ -12,15 +12,15 @@ pub struct Message {
     pub author: User,
     pub content: String,
     pub timestamp: String,
-    pub edited_timestamp: String,
+    pub edited_timestamp: Option<String>,
     pub tts: bool,
     pub mention_everyone: bool,
     pub mentions: Vec<User>,
     pub mention_roles: Vec<String>,
-    pub mention_channels: Vec<ChannelMention>,
+    pub mention_channels: Option<Vec<ChannelMention>>,
     pub attachments: Vec<Attachment>,
     pub embeds: Vec<Embed>,
-    pub reactions: Vec<Reaction>,
+    pub reactions: Option<Vec<Reaction>>,
 
     /// used for validating a message was sent
     pub nonce: Option<String>,
