@@ -2,6 +2,8 @@ use bitflags::bitflags;
 use ijson::IValue;
 use serde::{Deserialize, Serialize};
 
+use crate::boilerplate_flags;
+
 /// Represents a user object.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct User {
@@ -89,27 +91,4 @@ bitflags! {
     }
 }
 
-impl Into<u64> for UserFlags {
-    fn into(self) -> u64 {
-        self.bits()
-    }
-}
-
-impl Serialize for UserFlags {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u64(self.bits())
-    }
-}
-
-impl<'de> Deserialize<'de> for UserFlags {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = u64::deserialize(deserializer)?;
-        Ok(UserFlags::from_bits_truncate(value))
-    }
-}
+boilerplate_flags!(UserFlags);

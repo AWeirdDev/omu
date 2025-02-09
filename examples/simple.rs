@@ -5,13 +5,14 @@ use omu::{Client, Intents};
 async fn main() -> Result<()> {
     let mut client = Client::new(
         &dotenv::var("MY_TOKEN")?,
-        Some(Intents::MESSAGE_CONTENT | Intents::GUILD_MESSAGES),
+        Some(Intents::MESSAGE_CONTENT | Intents::GUILDS | Intents::DIRECT_MESSAGES),
     );
     client.run().await?;
 
     loop {
-        if let Ok(data) = client.next().await {
-            println!("{data:?}");
+        match client.next().await {
+            Ok(event) => println!("{:?}", event),
+            Err(err) => println!("error: {}", err),
         }
     }
 }

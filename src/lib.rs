@@ -1,8 +1,9 @@
 pub mod gateway;
-pub use gateway::*;
+pub use gateway::{Gateway, GatewayEvent, Intents, RawGatewayEvent};
+
+pub mod macros;
 
 pub mod client;
-pub use client::core::*;
+pub use client::*;
 
 pub mod models;
-pub use models::*;

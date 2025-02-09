@@ -1,11 +1,14 @@
+use crate::models;
+
 use super::{
     event_data::{GatewayEvent, HelloData, ReadyData},
-    Intents, Message,
+    Intents, MessageCreate,
 };
 
 use anyhow::{anyhow, Result};
 use ijson::{ijson, IValue};
 use serde::{Deserialize, Serialize};
+use tokio_tungstenite::tungstenite::Message;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RawGatewayEvent {
@@ -15,6 +18,8 @@ pub struct RawGatewayEvent {
     pub data: Option<IValue>,
     #[serde(rename = "s")]
     pub sequence: Option<u64>,
+    #[serde(rename = "t")]
+    pub t: Option<String>,
 }
 
 impl From<Message> for RawGatewayEvent {
@@ -73,13 +78,22 @@ impl RawGatewayEvent {
             op_code: 2,
             data: Some(data),
             sequence: None,
+            t: None,
         }
     }
 
     pub fn get_event_data(&self) -> Result<GatewayEvent> {
+        println!("{self:?}");
         if let Some(data) = &self.data {
             let e = match self.op_code {
-                0 => GatewayEvent::Ready(ijson::from_value::<ReadyData>(data).unwrap()),
+                0 => match self.t.as_deref().unwrap() {
+                    "READY" => GatewayEvent::Ready(ijson::from_value::<ReadyData>(data)?),
+                    "MESSAGE_CREATE" => GatewayEvent::MessageCreate(MessageCreate {
+                        guild_id: data["guild_id"].as_string().map(|v| v.to_string()),
+                        message: ijson::from_value::<models::Message>(data)?,
+                    }),
+                    _ => return Err(anyhow!("unrecognized data type. raw: {:?}", self)),
+                },
                 10 => GatewayEvent::Hello(HelloData {
                     heartbeat_interval: data["heartbeat_interval"]
                         .as_number()
@@ -87,11 +101,11 @@ impl RawGatewayEvent {
                         .to_u64()
                         .unwrap(),
                 }),
-                _ => panic!("unknown op code! {}", self.op_code),
+                _ => return Err(anyhow!("unknown op code and data:\n{:?}", self)),
             };
             Ok(e)
         } else {
-            Err(anyhow!("unrecognized data type. raw: {:?}", self.data))
+            Err(anyhow!("unrecognized data type. raw: {:?}", self))
         }
     }
 }

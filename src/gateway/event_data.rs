@@ -1,4 +1,4 @@
-use crate::{PartialGuild, User};
+use crate::models::{Message, PartialGuild, User};
 
 use ijson::IValue;
 use serde::{Deserialize, Serialize};
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum GatewayEvent {
     Ready(ReadyData),
     Hello(HelloData),
+    MessageCreate(MessageCreate),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,4 +25,12 @@ pub struct ReadyData {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HelloData {
     pub heartbeat_interval: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageCreate {
+    pub guild_id: Option<String>,
+    pub message: Message,
+    // pub member
+    // pub mentions
 }

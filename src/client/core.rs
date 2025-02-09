@@ -3,10 +3,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use tokio::sync::Mutex;
 
-use crate::{
-    gateway::{Gateway, Intents},
-    GatewayEvent, RawGatewayEvent, Rx,
-};
+use crate::gateway::{Gateway, GatewayEvent, Intents, RawGatewayEvent, Rx};
 
 pub struct Client {
     pub gateway: Arc<Mutex<Option<Gateway>>>,
@@ -45,6 +42,7 @@ impl Client {
             let event: RawGatewayEvent = data.into();
             match event.get_event_data()? {
                 GatewayEvent::Hello(hello) => {
+                    println!("connected");
                     gateway.heartbeat_interval = Some(hello.heartbeat_interval);
                 }
                 _ => {

@@ -113,6 +113,7 @@ impl Gateway {
                 op_code: 11,
                 data: None,
                 sequence: None,
+                t: None,
             }
             .into(),
         )
@@ -169,11 +170,11 @@ impl Gateway {
         let mut interval = interval(Duration::from_millis(interval_ms));
 
         loop {
-            println!("Sending heartbeat...");
             let message = Message::Text(r#"{"op":1,"d":null}"#.to_string());
 
             let mut stream = stream.lock().await;
             if let Some(stream) = stream.as_mut() {
+                println!("sending heartbeat...");
                 stream.send(message).await.ok();
             }
 
