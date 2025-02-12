@@ -23,7 +23,7 @@ pub struct Message {
     pub reactions: Option<Vec<Reaction>>,
 
     /// used for validating a message was sent
-    pub nonce: Option<String>,
+    pub nonce: Option<Nounce>,
 
     pub pinned: bool,
     pub webhook_id: Option<String>,
@@ -33,6 +33,13 @@ pub struct Message {
     // pub activity: Option<MessageActivity>,
     // pub application: Option<Application>,
     // pub message_reference: Option<MessageReference>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Nounce {
+    Str(String),
+    Integer(u64),
 }
 
 bitflags! {
