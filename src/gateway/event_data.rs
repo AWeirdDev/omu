@@ -1,4 +1,4 @@
-use crate::models::{Message, PartialGuild, User};
+use crate::dataclasses::{Message, PartialGuild, User};
 
 use ijson::IValue;
 use serde::{Deserialize, Serialize};

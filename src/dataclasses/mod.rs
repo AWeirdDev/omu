@@ -11,5 +11,6 @@ pub use channel::*;
 pub use common::*;
 pub use guild::*;
 pub use message::*;
+pub use message::{embed::*, mentions::*};
 pub use role::*;
 pub use user::*;

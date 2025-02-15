@@ -3,13 +3,18 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use tokio::sync::Mutex;
 
-use crate::gateway::{Gateway, GatewayEvent, Intents, RawGatewayEvent, Rx};
+use crate::{
+    gateway::{Gateway, GatewayEvent, Intents, RawGatewayEvent, Rx},
+    http::client::HttpClient,
+};
 
+/// Represents a high-level Discord client.
 pub struct Client {
     pub gateway: Arc<Mutex<Option<Gateway>>>,
     pub token: String,
     pub intents: Option<Intents>,
     pub rx: Option<Rx>,
+    pub http: Arc<HttpClient>,
 }
 
 impl Client {
@@ -19,6 +24,7 @@ impl Client {
             token: token.to_string(),
             intents,
             rx: None,
+            http: Arc::new(HttpClient::try_new(token).unwrap()),
         }
     }
 
@@ -35,7 +41,7 @@ impl Client {
         let mut gateway =
             Gateway::new_connection("wss://gateway.discord.gg/?v=10&encoding=json").await?;
         gateway
-            .authenticate(&*self.token, self.intents.clone())
+            .authenticate(&self.token, self.intents.clone())
             .await?;
 
         if let Some(data) = gateway.next().await? {
@@ -46,8 +52,8 @@ impl Client {
                 }
                 _ => {
                     return Err(anyhow!(
-                    "unrecognized data type after authentication (expected GatewayEvent::Hello)"
-                ))
+                        "unrecognized data type after authentication (expected GatewayEvent::Hello)"
+                    ))
                 }
             }
         } else {

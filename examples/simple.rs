@@ -1,5 +1,5 @@
 use anyhow::Result;
-use omu::{Client, Intents};
+use omu::{dataclasses::TextChannel, Client, GatewayEvent, Intents};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -16,7 +16,23 @@ async fn main() -> Result<()> {
 
     loop {
         match client.next().await {
-            Ok(event) => println!("{:?}", event),
+            Ok(event) => {
+                if let GatewayEvent::MessageCreate(mc) = event {
+                    if &mc.message.content == "hello" {
+                        let channel = client
+                            .http
+                            .get_channel::<TextChannel>(&mc.message.channel_id)
+                            .await?
+                            .attach(client.http.clone());
+
+                        channel
+                            .message()
+                            .content("Hello, World!".to_string())
+                            .send()
+                            .await?;
+                    }
+                }
+            }
             Err(err) => println!("error: {}", err),
         }
     }

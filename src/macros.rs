@@ -1,12 +1,12 @@
 #[macro_export]
 macro_rules! boilerplate_flags {
     ($name:ident) => {
-        impl Into<u64> for $name {
-            fn into(self) -> u64 {
-                self.bits()
+        impl From<$name> for u64 {
+            fn from(value: $name) -> u64 {
+                value.bits()
             }
         }
-
+        
         impl serde::Serialize for $name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
@@ -31,9 +31,9 @@ macro_rules! boilerplate_flags {
 #[macro_export]
 macro_rules! boilerplate_flags_as_u8 {
     ($name:ident) => {
-        impl Into<u8> for $name {
-            fn into(self) -> u8 {
-                self.bits()
+        impl From<$name> for u8 {
+            fn from(value: $name) -> u8 {
+                value.bits()
             }
         }
 

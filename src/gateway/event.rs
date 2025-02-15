@@ -1,4 +1,4 @@
-use crate::models;
+use crate::dataclasses;
 
 use super::{
     event_data::{GatewayEvent, HelloData, ReadyData},
@@ -36,9 +36,9 @@ impl From<Message> for RawGatewayEvent {
     }
 }
 
-impl Into<Message> for RawGatewayEvent {
-    fn into(self) -> Message {
-        Message::Text(serde_json::to_string(&self).unwrap())
+impl From<RawGatewayEvent> for Message {
+    fn from(val: RawGatewayEvent) -> Self {
+        Message::Text(serde_json::to_string(&val).unwrap())
     }
 }
 
@@ -91,7 +91,7 @@ impl RawGatewayEvent {
                         guild_id: data
                             .get("guild_id")
                             .map(|v| v.as_string().unwrap().to_string()),
-                        message: ijson::from_value::<models::Message>(data)?,
+                        message: ijson::from_value::<dataclasses::Message>(data)?,
                     }),
                     _ => return Err(anyhow!("unrecognized data type. raw: {:?}", self)),
                 },

@@ -6,4 +6,6 @@ pub mod macros;
 pub mod client;
 pub use client::*;
 
-pub mod models;
+pub mod http;
+
+pub mod dataclasses;

@@ -1,5 +1,7 @@
 use bitflags::bitflags;
 
+use crate::boilerplate_flags;
+
 bitflags! {
     #[derive(Clone)]
     /// Gateway intents. (`u64`)
@@ -28,8 +30,4 @@ bitflags! {
     }
 }
 
-impl Into<u64> for Intents {
-    fn into(self) -> u64 {
-        self.bits()
-    }
-}
+boilerplate_flags!(Intents);
