@@ -1,6 +1,6 @@
 use anyhow::Result;
 use omu::{
-    dataclasses::{AllowedMention, TextChannel},
+    dataclasses::{AllowedMention, Mentionable, TextChannel},
     Client, GatewayEvent, Intents,
 };
 
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
 
                         channel
                             .prepare_send()
-                            .content(format!("Hello, {}", mc.message.author.id.mention_user()))
+                            .content(format!("Hello, {}", mc.message.author.mention()))
                             .allowed_mentions(AllowedMention::builder().build())
                             .send()
                             .await?;

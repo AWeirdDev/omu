@@ -1,5 +1,4 @@
 pub(crate) mod _traits;
-pub(crate) use _traits::*;
 
 pub mod attachment;
 pub mod channel;
@@ -20,4 +19,5 @@ pub use role::*;
 pub use snowflake::*;
 pub use user::*;
 
-pub use _traits::Mentionable; // enabled by default
+pub(crate) use _traits::HttpAttachable;
+pub use _traits::Mentionable;
