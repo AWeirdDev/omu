@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::boilerplate_flags_as_u8;
 
-use super::{HexCode, Snowflake};
+use super::{HexCode, Mentionable, Snowflake};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Role {
@@ -22,6 +22,12 @@ pub struct Role {
     pub mentionable: bool,
     pub tags: Option<RoleTags>,
     pub flags: RoleFlags,
+}
+
+impl Mentionable for Role {
+    fn mention(&self) -> String {
+        self.id.mention_role()
+    }
 }
 
 /// Tags with type null represent booleans.

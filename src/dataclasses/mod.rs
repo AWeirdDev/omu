@@ -19,3 +19,5 @@ pub use message::{embed::*, mentions::*};
 pub use role::*;
 pub use snowflake::*;
 pub use user::*;
+
+pub use _traits::Mentionable; // enabled by default

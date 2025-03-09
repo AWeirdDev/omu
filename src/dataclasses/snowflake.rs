@@ -1,18 +1,24 @@
-use std::ops::Deref;
+use std::{fmt::Debug, ops::Deref};
 
 use lexical::parse;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Snowflake {
     id: u64,
+}
+
+impl Debug for Snowflake {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }
 
 impl Snowflake {
     pub fn new(id: u64) -> Self {
         Snowflake { id }
     }
-    
+
     pub fn as_u64(&self) -> u64 {
         self.id
     }

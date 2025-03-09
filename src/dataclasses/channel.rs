@@ -10,7 +10,7 @@ use crate::{
     http::{client::HttpClient, http_messages::PrepareCreateMessageBuilder},
 };
 
-use super::{HttpAttachable, Snowflake, User};
+use super::{HttpAttachable, Mentionable, Snowflake, User};
 
 /// To convert this directly into the typed version of a channel, use [`Channel::into`].
 #[derive(Debug, Serialize, Deserialize)]
@@ -84,6 +84,12 @@ pub struct Channel<T> {
 impl<T> HttpAttachable for Channel<T> {
     fn attach(&mut self, http: Arc<HttpClient>) {
         self.http = Some(http);
+    }
+}
+
+impl<T> Mentionable for Channel<T> {
+    fn mention(&self) -> String {
+        self.id.mention_channel()
     }
 }
 

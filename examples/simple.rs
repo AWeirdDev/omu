@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
 
                         channel
                             .prepare_send()
-                            .content("Wow, that's miserable. @everyone".to_string())
+                            .content(format!("Hello, {}", mc.message.author.id.mention_user()))
                             .allowed_mentions(AllowedMention::builder().build())
                             .send()
                             .await?;

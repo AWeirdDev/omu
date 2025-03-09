@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::boilerplate_flags;
 
-use super::Snowflake;
+use super::{Mentionable, Snowflake};
 
 /// Represents a user object.
 #[derive(Debug, Deserialize, Serialize)]
@@ -55,6 +55,12 @@ pub struct User {
 
     /// Data for the user's avatar decoration.
     pub avatar_decoration_data: Option<IValue>,
+}
+
+impl Mentionable for User {
+    fn mention(&self) -> String {
+        self.id.mention_user()
+    }
 }
 
 /// Represents the Nitro subscription type.
