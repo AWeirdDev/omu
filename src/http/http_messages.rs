@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde::Serialize;
 
-use crate::dataclasses::{Embed, Message, MessageReference, Nounce};
+use crate::dataclasses::{AllowedMention, Embed, Message, MessageReference, Nounce, Snowflake};
 
 use super::client::HttpClient;
 
@@ -13,18 +13,18 @@ pub struct CreateMessage {
     pub nounce: Option<Nounce>,
     pub tts: Option<bool>,
     pub embeds: Option<Vec<Embed>>,
-    pub allowed_mentions: Option<Vec<String>>,
+    pub allowed_mentions: Option<AllowedMention>,
     pub message_reference: Option<MessageReference>,
 }
 
 pub struct PrepareCreateMessageBuilder<'a> {
     cm: CreateMessage,
     http: &'a Arc<HttpClient>,
-    channel_id: &'a String,
+    channel_id: &'a Snowflake,
 }
 
 impl<'a> PrepareCreateMessageBuilder<'a> {
-    pub(crate) fn new(http: &'a Arc<HttpClient>, channel_id: &'a String) -> Self {
+    pub(crate) fn new(http: &'a Arc<HttpClient>, channel_id: &'a Snowflake) -> Self {
         Self {
             cm: CreateMessage {
                 content: None,
@@ -59,7 +59,7 @@ impl<'a> PrepareCreateMessageBuilder<'a> {
         self
     }
 
-    pub fn allowed_mentions(mut self, allowed_mentions: Vec<String>) -> Self {
+    pub fn allowed_mentions(mut self, allowed_mentions: AllowedMention) -> Self {
         self.cm.allowed_mentions = Some(allowed_mentions);
         self
     }
@@ -69,7 +69,10 @@ impl<'a> PrepareCreateMessageBuilder<'a> {
         self
     }
 
+    /// Fire the message.
     pub async fn send(&self) -> Result<Message> {
-        self.http.create_message(&self.channel_id, &self.cm).await
+        self.http
+            .create_message(&self.channel_id.to_string().as_str(), &self.cm)
+            .await
     }
 }

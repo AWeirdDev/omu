@@ -4,10 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::boilerplate_flags;
 
+use super::Snowflake;
+
 /// Represents a user object.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct User {
-    pub id: String,
+    pub id: Snowflake,
     pub username: String,
 
     /// The user's Discord-tag.

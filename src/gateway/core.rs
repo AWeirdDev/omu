@@ -15,6 +15,8 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
+use crate::dataclasses::Snowflake;
+
 use super::{get_sharding, Intents};
 
 pub type Tx = UnboundedSender<Message>;
@@ -30,7 +32,7 @@ pub struct Gateway {
     pub stream: Arc<Mutex<Option<WebSocketStream<MaybeTlsStream<TcpStream>>>>>,
     pub status: Status,
     pub heartbeat_interval: Option<u64>,
-    pub sharding: Option<(u64, u64)>,
+    pub sharding: Option<(Snowflake, u64)>,
     pub last_sequence_number: Option<u64>,
 }
 
@@ -55,8 +57,8 @@ impl Gateway {
     ///     .await?
     ///     .with_guild_sharding(123456789, 10);
     /// ```
-    pub fn with_guild_sharding(mut self, guild_id: u64, total_shards: u64) -> Self {
-        self.sharding = Some(get_sharding(guild_id, total_shards));
+    pub fn with_guild_sharding(mut self, guild: &Snowflake, total_shards: u64) -> Self {
+        self.sharding = Some(get_sharding(*guild, total_shards));
         self
     }
 
@@ -175,7 +177,6 @@ impl Gateway {
             {
                 let mut stream = stream.lock().await;
                 if let Some(stream) = stream.as_mut() {
-                    println!("sending heartbeat...");
                     stream.send(message).await.ok();
                 }
             }
@@ -196,5 +197,25 @@ impl Gateway {
                 }
             }
         }
+    }
+}
+
+impl Gateway {
+    pub async fn update_voice(
+        &mut self,
+        guild_id: &Snowflake,
+        channel_id: &Snowflake,
+        self_mute: bool,
+        self_deaf: bool,
+    ) -> Result<()> {
+        self.send(
+            super::RawGatewayEvent::new_voice_state_update(
+                guild_id, channel_id, self_mute, self_deaf,
+            )
+            .into(),
+        )
+        .await?;
+
+        Ok(())
     }
 }

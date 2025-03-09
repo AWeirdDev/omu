@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::boilerplate_flags;
 
+use super::Snowflake;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Attachment {
-    pub id: String,
+    pub id: Snowflake,
     pub filename: String,
     pub title: Option<String>,
     pub description: Option<String>,

@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use tokio::sync::Mutex;
 
 use crate::{
+    dataclasses::{HttpAttachable, Snowflake},
     gateway::{Gateway, GatewayEvent, Intents, RawGatewayEvent, Rx},
     http::client::HttpClient,
 };
@@ -73,7 +74,13 @@ impl Client {
         if let Some(rx) = self.rx.as_mut() {
             if let Some(message) = rx.recv().await {
                 let event: RawGatewayEvent = message.into();
-                return event.get_event_data();
+
+                let mut data = event.get_event_data()?;
+                if let GatewayEvent::MessageCreate(mc) = &mut data {
+                    mc.message.attach(self.http.clone());
+                }
+
+                return Ok(data);
             }
         }
 
@@ -88,6 +95,21 @@ impl Client {
         if let Some(gw) = gateway.as_mut() {
             let rx = gw.run().await?;
             self.rx = Some(rx);
+        }
+
+        Ok(())
+    }
+
+    pub async fn update_voice(
+        &mut self,
+        guild_id: &Snowflake,
+        channel_id: &Snowflake,
+        self_mute: bool,
+        self_deaf: bool,
+    ) -> Result<()> {
+        if let Some(gw) = self.gateway.lock().await.as_mut() {
+            gw.update_voice(guild_id, channel_id, self_mute, self_deaf)
+                .await?;
         }
 
         Ok(())

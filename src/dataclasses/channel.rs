@@ -10,9 +10,9 @@ use crate::{
     http::{client::HttpClient, http_messages::PrepareCreateMessageBuilder},
 };
 
-use super::User;
+use super::{HttpAttachable, Snowflake, User};
 
-/// To convert this directly into the typed version of a channel, use [`Channel::to`].
+/// To convert this directly into the typed version of a channel, use [`Channel::into`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Channel<T> {
     #[serde(skip)]
@@ -21,10 +21,10 @@ pub struct Channel<T> {
     #[serde(skip)]
     http: Option<Arc<HttpClient>>,
 
-    pub id: String,
+    pub id: Snowflake,
     #[serde(rename = "type")]
     pub type_: ChannelType,
-    pub guild_id: Option<String>,
+    pub guild_id: Option<Snowflake>,
     pub position: Option<u16>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
     pub name: Option<String>,
@@ -34,7 +34,7 @@ pub struct Channel<T> {
     pub topic: Option<String>,
 
     pub nsfw: Option<bool>,
-    pub last_message_id: Option<String>,
+    pub last_message_id: Option<Snowflake>,
 
     pub bitrate: Option<usize>,
     pub user_limit: Option<usize>,
@@ -42,10 +42,13 @@ pub struct Channel<T> {
 
     pub recipients: Option<Vec<User>>,
     pub icon: Option<String>,
-    pub owner_id: Option<String>,
-    pub application_id: Option<String>,
+    pub owner_id: Option<Snowflake>,
+    pub application_id: Option<Snowflake>,
 
     pub managed: Option<bool>,
+
+    /// for guild channels: id of the parent category for a channel (each parent category can contain up to 50 channels);
+    /// for threads: id of the text channel this thread was created
     pub parent_id: Option<String>,
     pub last_pin_timestamp: Option<String>,
 
@@ -56,15 +59,31 @@ pub struct Channel<T> {
 
     /// an approximate count of users in a thread, stops counting at 50
     pub member_count: Option<u8>,
-    // thread_metadata:
+    pub thread_metadata: Option<ThreadMetadata>,
+    pub default_auto_archive_duration: Option<AutoArchiveDuration>,
+
     pub permissions: Option<String>,
-    // ...
+    pub flags: Option<ChannelFlags>,
+
+    /// number of messages ever sent in a thread, it's similar to `message_count` on message creation,
+    /// but will not decrement the number when a message is deleted
+    pub total_message_sent: Option<usize>,
+
+    pub available_tags: Option<Vec<ForumTag>>,
+    pub applied_tags: Option<Vec<String>>,
+    pub default_reaction_emoji: Option<DefaultForumReactionEmoji>,
+    pub default_thread_rate_limit_per_user: Option<usize>,
+
+    /// Defaults to null, which indicates a preferred sort order hasn't been set by a channel admin
+    pub default_sort_order: Option<ForumSortOrder>,
+
+    /// Defaults to 0, which indicates a layout view has not been set by a channel admin
+    pub default_forum_layout: Option<ForumLayout>,
 }
 
-impl<T> Channel<T> {
-    pub fn attach(mut self, http: Arc<HttpClient>) -> Self {
+impl<T> HttpAttachable for Channel<T> {
+    fn attach(&mut self, http: Arc<HttpClient>) {
         self.http = Some(http);
-        self
     }
 }
 
@@ -72,22 +91,22 @@ impl<T> Channel<T> {
 pub struct TextChannel {
     http: Option<Arc<HttpClient>>,
 
-    pub id: String,
-    pub guild_id: String,
+    pub id: Snowflake,
+    pub guild_id: Snowflake,
     pub position: u16,
     pub permission_overwrites: Vec<Overwrite>,
     pub name: String,
     pub topic: Option<String>,
     pub nsfw: bool,
-    pub last_message_id: Option<String>,
+    pub last_message_id: Option<Snowflake>,
     pub rate_limit_per_user: Option<usize>,
     pub last_pin_timestamp: Option<String>,
     pub permissions: Option<String>,
+    pub flags: Option<ChannelFlags>,
 }
 
 impl<'a> Channel<TextChannel> {
-    /// Converts directly into a typed text channel.
-    pub fn to(self) -> TextChannel {
+    fn _to(self) -> TextChannel {
         TextChannel {
             http: self.http,
             id: self.id,
@@ -101,37 +120,83 @@ impl<'a> Channel<TextChannel> {
             rate_limit_per_user: self.rate_limit_per_user,
             last_pin_timestamp: self.last_pin_timestamp,
             permissions: self.permissions,
+            flags: self.flags,
         }
     }
 
-    pub fn message(&'a self) -> PrepareCreateMessageBuilder<'a> {
+    pub fn prepare_send(&'a self) -> PrepareCreateMessageBuilder<'a> {
         PrepareCreateMessageBuilder::new(&self.http.as_ref().unwrap(), &self.id)
+    }
+}
+
+impl From<Channel<TextChannel>> for TextChannel {
+    /// Converts directly into a typed text channel.
+    fn from(value: Channel<TextChannel>) -> Self {
+        value._to()
     }
 }
 
 impl<'a> TextChannel {
-    pub fn message(&'a self) -> PrepareCreateMessageBuilder<'a> {
+    pub fn prepare_send(&'a self) -> PrepareCreateMessageBuilder<'a> {
         PrepareCreateMessageBuilder::new(&self.http.as_ref().unwrap(), &self.id)
     }
 }
 
 #[derive(Debug)]
-pub struct VoiceChannel;
+pub struct VoiceChannel {
+    http: Option<Arc<HttpClient>>,
+
+    pub id: Snowflake,
+    pub guild_id: Snowflake,
+    pub position: u16,
+    pub permission_overwrites: Vec<Overwrite>,
+    pub name: String,
+    pub bitrate: Option<usize>,
+    pub user_limit: Option<usize>,
+    pub rtc_region: Option<String>,
+    pub video_quality_mode: Option<VideoQualityMode>,
+    pub permissions: Option<String>,
+    pub flags: Option<ChannelFlags>,
+}
+
+impl<'a> Channel<VoiceChannel> {
+    fn _to(self) -> VoiceChannel {
+        VoiceChannel {
+            http: self.http,
+            id: self.id,
+            guild_id: self.guild_id.unwrap(),
+            position: self.position.unwrap(),
+            permission_overwrites: self.permission_overwrites.unwrap(),
+            name: self.name.unwrap(),
+            bitrate: self.bitrate,
+            user_limit: self.user_limit,
+            rtc_region: self.rtc_region,
+            video_quality_mode: self.video_quality_mode,
+            permissions: self.permissions,
+            flags: self.flags,
+        }
+    }
+
+    pub fn prepare_send(&'a self) -> PrepareCreateMessageBuilder<'a> {
+        PrepareCreateMessageBuilder::new(&self.http.as_ref().unwrap(), &self.id)
+    }
+}
+
+impl From<Channel<VoiceChannel>> for VoiceChannel {
+    /// Converts directly into a typed voice channel.
+    fn from(value: Channel<VoiceChannel>) -> Self {
+        value._to()
+    }
+}
+
+impl<'a> VoiceChannel {
+    pub fn prepare_send(&'a self) -> PrepareCreateMessageBuilder<'a> {
+        PrepareCreateMessageBuilder::new(&self.http.as_ref().unwrap(), &self.id)
+    }
+}
 
 #[derive(Debug)]
 pub struct Thread;
-
-impl Channel<VoiceChannel> {
-    pub fn to(self) -> VoiceChannel {
-        VoiceChannel
-    }
-}
-
-impl Channel<Thread> {
-    pub fn to(self) -> Thread {
-        Thread
-    }
-}
 
 bitflags! {
     #[derive(Debug)]
@@ -154,10 +219,20 @@ bitflags! {
 
 boilerplate_flags!(ChannelType);
 
+bitflags! {
+    #[derive(Debug)]
+    pub struct ChannelFlags: u64 {
+        const PINNED = 1 << 1;
+        const REQUIRED_TAG = 1 << 4;
+        const HIDE_MEDIA_DOWNLOAD_OPTIONS = 1 << 15;
+    }
+}
+boilerplate_flags!(ChannelFlags);
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Overwrite {
     /// Role or user ID.
-    pub id: String,
+    pub id: Snowflake,
 
     #[serde(rename = "type")]
     pub type_: OverwriteType,
@@ -255,7 +330,56 @@ impl<'de> Deserialize<'de> for Permissions {
 #[derive(Debug, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum VideoQualityMode {
-    AUTO = 1,
+    Auto = 1,
     /// 720p
-    FULL = 2,
+    Full = 2,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ThreadMetadata {
+    pub archived: bool,
+    pub auto_archive_duration: u64,
+    pub archive_timestamp: String,
+    pub locked: bool,
+    pub invitable: Option<bool>,
+    pub create_timestamp: Option<String>,
+}
+
+#[derive(Debug, Serialize_repr, Deserialize_repr)]
+#[repr(u16)]
+pub enum AutoArchiveDuration {
+    OneHour = 60,
+    OneDay = 1440,
+    ThreeDays = 4320,
+    OneWeek = 10080,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ForumTag {
+    id: Snowflake,
+    name: String,
+    moderated: bool,
+    emoji_id: Option<Snowflake>,
+    emoji_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DefaultForumReactionEmoji {
+    emoji_id: Option<Snowflake>,
+    emoji_name: Option<String>,
+}
+
+#[derive(Debug, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum ForumSortOrder {
+    LatestActivity = 0,
+    CreationDate = 1,
+}
+
+#[derive(Debug, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum ForumLayout {
+    NotSet = 0,
+    ListView = 1,
+    GalleryView = 2,
 }

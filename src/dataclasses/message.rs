@@ -1,15 +1,27 @@
+use std::sync::Arc;
+
+use anyhow::Result;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::boilerplate_flags;
+use crate::{
+    boilerplate_flags,
+    http::{client::HttpClient, http_messages::PrepareCreateMessageBuilder},
+    utils,
+};
 
-use super::{Attachment, Channel, ChannelType, HexCode, Role, Thread, User};
+use super::{
+    Attachment, Channel, ChannelType, HexCode, HttpAttachable, Role, Snowflake, Thread, User,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Message {
-    pub id: String,
-    pub channel_id: String,
+    #[serde(skip)]
+    client: Option<Arc<HttpClient>>,
+
+    pub id: Snowflake,
+    pub channel_id: Snowflake,
     pub author: User,
     pub content: String,
     pub timestamp: String,
@@ -17,7 +29,7 @@ pub struct Message {
     pub tts: bool,
     pub mention_everyone: bool,
     pub mentions: Vec<User>,
-    pub mention_roles: Vec<String>,
+    pub mention_roles: Vec<Snowflake>,
     pub mention_channels: Option<Vec<mentions::ChannelMention>>,
     pub attachments: Vec<Attachment>,
     pub embeds: Vec<embed::Embed>,
@@ -27,7 +39,7 @@ pub struct Message {
     pub nonce: Option<Nounce>,
 
     pub pinned: bool,
-    pub webhook_id: Option<String>,
+    pub webhook_id: Option<Snowflake>,
 
     #[serde(rename = "type")]
     pub type_: MessageType,
@@ -42,6 +54,37 @@ pub struct Message {
     // interaction_metadata
     // interaction
     pub thread: Option<Channel<Thread>>,
+}
+
+impl<'a> Message {
+    //                   ↓↓ look, i have a reason for this.
+    pub fn prepare_send(&'a self) -> PrepareCreateMessageBuilder<'a> {
+        PrepareCreateMessageBuilder::new(&self.client.as_ref().unwrap(), &self.channel_id)
+            .message_reference(MessageReference {
+                type_: MessageReferenceType::Default,
+                message_id: Some(self.id),
+                channel_id: None,
+                guild_id: None,
+                fail_if_not_exists: Some(true),
+            })
+    }
+
+    pub async fn fetch_channel<T>(&self) -> Result<Channel<T>> {
+        if let Some(client) = &self.client {
+            let mut channel = client.get_channel(&self.channel_id).await?;
+            channel.attach(client.clone());
+
+            Ok(channel)
+        } else {
+            Err(anyhow::anyhow!("no client was attached"))
+        }
+    }
+}
+
+impl HttpAttachable for Message {
+    fn attach(&mut self, http: Arc<HttpClient>) {
+        self.client = Some(http);
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -238,7 +281,7 @@ pub struct ReactionDetails {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Emoji {
-    pub id: Option<String>,
+    pub id: Option<Snowflake>,
     pub name: Option<String>,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
@@ -256,7 +299,7 @@ pub struct Emoji {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageActivity {
     type_: MessageActivityType,
-    party_id: Option<String>,
+    party_id: Option<Snowflake>,
 }
 
 #[derive(Debug, Serialize_repr, Deserialize_repr)]
@@ -272,12 +315,22 @@ pub enum MessageActivityType {
 pub struct AllowedMention {
     pub parse: Vec<AllowedMentionType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub roles: Option<Vec<String>>,
+    pub roles: Option<Vec<Snowflake>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub users: Option<Vec<String>>,
+    pub users: Option<Vec<Snowflake>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl AllowedMention {
+    pub fn builder() -> utils::AllowedMentionsBuilder {
+        utils::AllowedMentionsBuilder::empty()
+    }
+
+    pub fn into_builder(self) -> utils::AllowedMentionsBuilder {
+        utils::AllowedMentionsBuilder::from(self)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AllowedMentionType {
     #[serde(rename = "roles")]
     Roles,
@@ -291,12 +344,12 @@ pub enum AllowedMentionType {
 pub struct MessageReference {
     #[serde(rename = "type")]
     type_: MessageReferenceType,
-    message_id: Option<String>,
+    message_id: Option<Snowflake>,
 
     /// Required for forwards.
-    channel_id: Option<String>,
+    channel_id: Option<Snowflake>,
 
-    guild_id: Option<String>,
+    guild_id: Option<Snowflake>,
     fail_if_not_exists: Option<bool>,
 }
 
@@ -314,8 +367,8 @@ pub mod mentions {
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct ChannelMention {
-        pub id: String,
-        pub guild_id: String,
+        pub id: Snowflake,
+        pub guild_id: Snowflake,
 
         #[serde(rename = "type")]
         pub type_: ChannelType,

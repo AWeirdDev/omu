@@ -1,3 +1,5 @@
+use crate::dataclasses::Snowflake;
+
 /// Get the `shard` array for the Identify payload.
 /// You could pass this to [`Gateway::authenticate`].
 /// Returns: (`shard_id`, `total_shards`)
@@ -14,6 +16,6 @@
 /// let (shard_id, num_shards) = get_sharding(1, 2);
 /// assert_eq!(shard_id, 1);
 /// assert_eq!(num_shards, 2);
-pub fn get_sharding(guild_id: u64, num_shards: u64) -> (u64, u64) {
-    ((guild_id >> 22) % num_shards, num_shards)
+pub fn get_sharding(guild_id: Snowflake, num_shards: u64) -> (Snowflake, u64) {
+    (Snowflake::new((*guild_id >> 22) % num_shards), num_shards)
 }

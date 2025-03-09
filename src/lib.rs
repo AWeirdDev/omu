@@ -9,3 +9,7 @@ pub use client::*;
 pub mod http;
 
 pub mod dataclasses;
+
+pub mod cache;
+
+pub mod utils;

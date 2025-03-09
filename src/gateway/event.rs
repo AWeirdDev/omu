@@ -1,4 +1,4 @@
-use crate::dataclasses;
+use crate::dataclasses::{self, Snowflake};
 
 use super::{
     event_data::{GatewayEvent, HelloData, ReadyData},
@@ -57,7 +57,7 @@ impl RawGatewayEvent {
         properties: IdentifyConnectionProperty,
         compress: Option<bool>,
         large_threshold: Option<u8>,
-        shard: Option<(u64, u64)>,
+        shard: Option<(Snowflake, u64)>,
         presence: Option<ijson::IValue>,
         intents: Option<u64>,
     ) -> Self {
@@ -77,6 +77,25 @@ impl RawGatewayEvent {
         Self {
             op_code: 2,
             data: Some(data),
+            sequence: None,
+            t: None,
+        }
+    }
+
+    pub fn new_voice_state_update(
+        guild_id: &Snowflake,
+        channel_id: &Snowflake,
+        self_mute: bool,
+        self_deaf: bool,
+    ) -> Self {
+        Self {
+            op_code: 4,
+            data: Some(ijson!({
+                "guild_id": guild_id,
+                "channel_id": channel_id,
+                "self_mute": self_mute,
+                "self_deaf": self_deaf
+            })),
             sequence: None,
             t: None,
         }

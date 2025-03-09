@@ -1,9 +1,13 @@
+pub(crate) mod _traits;
+pub(crate) use _traits::*;
+
 pub mod attachment;
 pub mod channel;
 pub mod common;
 pub mod guild;
 pub mod message;
 pub mod role;
+pub mod snowflake;
 pub mod user;
 
 pub use attachment::*;
@@ -13,4 +17,5 @@ pub use guild::*;
 pub use message::*;
 pub use message::{embed::*, mentions::*};
 pub use role::*;
+pub use snowflake::*;
 pub use user::*;

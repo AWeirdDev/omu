@@ -4,7 +4,7 @@ use anyhow::Result;
 use reqwest::{header, Client as Reqwest};
 use tokio::sync::Mutex;
 
-use crate::dataclasses::{self, Channel};
+use crate::dataclasses::{self, Channel, Snowflake};
 
 use super::http_messages::CreateMessage;
 
@@ -74,10 +74,10 @@ impl HttpClient {
         Ok(res.json::<dataclasses::Message>().await?)
     }
 
-    pub async fn get_channel<T>(&self, channel_id: &str) -> Result<Channel<T>> {
+    pub async fn get_channel<T>(&self, channel_id: &Snowflake) -> Result<Channel<T>> {
         let client = self.client.lock().await;
         let res = client
-            .get(format!("{}/channels/{}", self.base, channel_id))
+            .get(format!("{}/channels/{}", self.base, channel_id.to_string()))
             .send()
             .await?;
 

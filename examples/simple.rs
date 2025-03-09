@@ -1,5 +1,8 @@
 use anyhow::Result;
-use omu::{dataclasses::TextChannel, Client, GatewayEvent, Intents};
+use omu::{
+    dataclasses::{AllowedMention, TextChannel},
+    Client, GatewayEvent, Intents,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -17,17 +20,15 @@ async fn main() -> Result<()> {
     loop {
         match client.next().await {
             Ok(event) => {
+                println!("{event:?}");
                 if let GatewayEvent::MessageCreate(mc) = event {
                     if &mc.message.content == "hello" {
-                        let channel = client
-                            .http
-                            .get_channel::<TextChannel>(&mc.message.channel_id)
-                            .await?
-                            .attach(client.http.clone());
+                        let channel: TextChannel = mc.message.fetch_channel().await?.into();
 
                         channel
-                            .message()
-                            .content("Hello, World!".to_string())
+                            .prepare_send()
+                            .content("Wow, that's miserable. @everyone".to_string())
+                            .allowed_mentions(AllowedMention::builder().build())
                             .send()
                             .await?;
                     }
