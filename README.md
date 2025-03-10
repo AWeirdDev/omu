@@ -1,28 +1,31 @@
 omu is a simple rust discord api wrapper. it's as simple as it should be.
 
+below is the redesigned api.
+
 ```rust
 use anyhow::Result;
-use omu::{Client, Intents};
+use omu::*;
+
+// Make it constant to access from anywhere
+const CLIENT: Client = Client::new(
+    Some(Intents::MESSAGE_CONTENT
+                | Intents::GUILD_MESSAGES
+                | Intents::DIRECT_MESSAGES
+                | Intents::GUILDS)
+);
+
+#[event(on_message)]
+async fn on_message(message: Message) -> Result<()> {
+  message.reply(format!("Hello, {}", message.author.mention())).await?;
+
+  Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut client = Client::new(
-        &dotenv::var("MY_TOKEN")?,
-        Some(
-            Intents::MESSAGE_CONTENT
-                | Intents::GUILD_MESSAGES
-                | Intents::DIRECT_MESSAGES
-                | Intents::GUILDS,
-        ),
-    );
-    client.run().await?;
-
-    loop {
-        match client.next().await {
-            Ok(event) => println!("{:?}", event),
-            Err(err) => println!("error: {}", err),
-        }
-    }
+    CLIENT.add(on_message);
+    
+    CLIENT.run(&dotenv::var("MY_TOKEN")).await?;
 }
 ```
 
